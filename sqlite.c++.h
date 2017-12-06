@@ -176,7 +176,7 @@ private:
 template<class T>
 T getColumn(sqlite3_stmt *stmt, int c) {
 	T result;
-	throw std::runtime_error("invalid or unhandled data type");
+	throw std::runtime_error("invalid or unhandled data type - column");
 	return result;
 };
 
