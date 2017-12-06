@@ -12,7 +12,7 @@ void closeDB(sqlite3 *h) {
 }
 
 class SQLiteDB {
-friend class SQLiteQuery;
+friend class SQLiteQueryBase;
 public:
 	SQLiteDB(const std::string &filename) : 
 		filename(filename), 
@@ -30,24 +30,80 @@ private:
 	std::unique_ptr<sqlite3, decltype(&closeDB)> dbHandle;
 };
 
+template<class T>
+int bindValue(sqlite3_stmt *stmt, int c, T value) {
+	throw std::runtime_error("invalid or unhandled data type - bind");
+	return 0;
+};
+
+template<>
+int bindValue<int>(sqlite3_stmt *stmt, int c, int value) {
+	return sqlite3_bind_int(stmt, c, value);
+}
+
+template<>
+int bindValue<sqlite_int64>(sqlite3_stmt *stmt, int c, sqlite_int64 value) {
+	return sqlite3_bind_int64(stmt, c, value);
+}
+
+template<>
+int bindValue<double>(sqlite3_stmt *stmt, int c, double value) {
+	return sqlite3_bind_double(stmt, c, value);
+}
+
+template<>
+int bindValue<std::string>(sqlite3_stmt *stmt, int pos, std::string value) {
+	return sqlite3_bind_text(stmt, pos, value.c_str(), -1, SQLITE_TRANSIENT);
+}
+
+template<class T>
+void _bindValues(sqlite3_stmt *stmt, int k, T&& first) {
+	auto res = bindValue<T>(stmt, k, std::forward<T>(first));
+	if (res != SQLITE_OK)
+		throw std::runtime_error(sqlite3_errstr(res));
+}
+
+template<class T, class ...Types>
+void _bindValues(sqlite3_stmt *stmt, int k, T&& first, Types&&...args) {
+	auto res = bindValue<T>(stmt, k, std::forward<T>(first));
+	if (res != SQLITE_OK)
+		throw std::runtime_error(sqlite3_errstr(res));
+	_bindValues(stmt, k+1, std::forward<Types>(args)...);
+}
+
 void finalizeStmt(sqlite3_stmt *stmt) {
 	if (stmt != nullptr)
 		sqlite3_finalize(stmt);
 }
 
-class SQLiteQuery {
+class SQLiteQueryBase {
 	friend class SQLiteResultBase;
 public:
+	SQLiteQueryBase(SQLiteDB &db) : db(db), stmt(nullptr, finalizeStmt) {};
+	SQLiteQueryBase(SQLiteQueryBase &&) = default;
+	SQLiteQueryBase(const SQLiteQueryBase &) = default;
+	virtual SQLiteQueryBase &operator=(const SQLiteQueryBase &) = default;
+	virtual SQLiteQueryBase &operator=(SQLiteQueryBase &&) = default;
+	virtual ~SQLiteQueryBase() {};
+private:
+	SQLiteDB &db;
+protected:
+	std::unique_ptr<sqlite3_stmt, decltype(&finalizeStmt)> stmt;
+	sqlite3 *getDBHandle() {
+		return db.dbHandle.get();
+	};
+};
+
+template<class ... Types>
+class SQLiteQuery : public SQLiteQueryBase {
+public:
 	SQLiteQuery(SQLiteDB &db) : 
-		db(db),
-		stmt(nullptr, finalizeStmt) {
-	
+		SQLiteQueryBase(db) {
 	};
 	
 	SQLiteQuery(SQLiteDB &db, const std::string &query) : 
-		db(db), 
-		query(query),
-		stmt(nullptr, finalizeStmt) {
+		SQLiteQueryBase(db),
+		query(query) {
 			
 		prepare();
 	};
@@ -58,6 +114,10 @@ public:
 		return *this;
 	}
 	
+	void bindValues(Types...args) {
+		_bindValues(stmt.get(), 1, std::forward<Types>(args)...);
+	}
+
 	void bind(int pos, int value) {
 		auto res = sqlite3_bind_int(stmt.get(), pos, value);
 		if (res != SQLITE_OK)
@@ -94,15 +154,13 @@ public:
 			throw std::runtime_error(sqlite3_errstr(res));
 	};
 private:
-	SQLiteDB &db;
 	std::string query;
-	std::unique_ptr<sqlite3_stmt, decltype(&finalizeStmt)> stmt;
 	
 	void prepare() {
 		sqlite3_stmt *stmtHandle;
 		
 		auto res = sqlite3_prepare(
-			db.dbHandle.get(),
+			getDBHandle(),
 			query.c_str(),
 			query.size(),
 			&stmtHandle,
@@ -159,24 +217,24 @@ void getRecord(sqlite3_stmt *stmt, int k, T &first, Types&...args) {
 
 class SQLiteResultBase {
 public:
-	SQLiteResultBase(SQLiteQuery &query) : query(query) {};
+	SQLiteResultBase(SQLiteQueryBase &query) : query(query) {};
 	SQLiteResultBase(SQLiteResultBase &&) = default;
 	SQLiteResultBase(const SQLiteResultBase &) = default;
-	SQLiteResultBase &operator=(const SQLiteResultBase &) = default;
-	SQLiteResultBase &operator=(SQLiteResultBase &&) = default;
+	virtual SQLiteResultBase &operator=(const SQLiteResultBase &) = default;
+	virtual SQLiteResultBase &operator=(SQLiteResultBase &&) = default;
 	virtual ~SQLiteResultBase() {};
 protected:
 	sqlite3_stmt *getQueryStmt() {
 		return query.stmt.get();
 	};
 private:
-	SQLiteQuery &query;
+	SQLiteQueryBase &query;
 };
 
 template<class ... Types>
-class SQLiteResult : public SQLiteResultBase {
+class SQLiteResult : private SQLiteResultBase {
 public:
-	SQLiteResult(SQLiteQuery &query) : SQLiteResultBase(query) {};
+	SQLiteResult(SQLiteQueryBase &query) : SQLiteResultBase(query) {};
 	
 	void fetch(Types&...args) {
 		getRecord(getQueryStmt(), 0, args...);
