@@ -56,19 +56,25 @@ int bindValue<std::string>(sqlite3_stmt *stmt, int pos, std::string value) {
 	return sqlite3_bind_text(stmt, pos, value.c_str(), -1, SQLITE_TRANSIENT);
 }
 
+template<>
+int bindValue<std::string&>(sqlite3_stmt *stmt, int pos, std::string &value) {
+	std::cout << "ref" << std::endl;
+	return sqlite3_bind_text(stmt, pos, value.c_str(), -1, SQLITE_TRANSIENT);
+}
+
 template<class T>
-void _bindValues(sqlite3_stmt *stmt, int k, T&& first) {
-	auto res = bindValue<T>(stmt, k, std::forward<T>(first));
+void _bindValues(sqlite3_stmt *stmt, int k, T first) {
+	auto res = bindValue<T>(stmt, k, first);
 	if (res != SQLITE_OK)
 		throw std::runtime_error(sqlite3_errstr(res));
 }
 
 template<class T, class ...Types>
-void _bindValues(sqlite3_stmt *stmt, int k, T&& first, Types&&...args) {
-	auto res = bindValue<T>(stmt, k, std::forward<T>(first));
+void _bindValues(sqlite3_stmt *stmt, int k, T first, Types...args) {
+	auto res = bindValue<T>(stmt, k, first);
 	if (res != SQLITE_OK)
 		throw std::runtime_error(sqlite3_errstr(res));
-	_bindValues(stmt, k+1, std::forward<Types>(args)...);
+	_bindValues(stmt, k+1, args...);
 }
 
 void finalizeStmt(sqlite3_stmt *stmt) {
@@ -115,7 +121,7 @@ public:
 	}
 	
 	void bindValues(Types...args) {
-		_bindValues(stmt.get(), 1, std::forward<Types>(args)...);
+		_bindValues(stmt.get(), 1, args...);
 	}
 
 	void bind(int pos, int value) {
