@@ -250,4 +250,5 @@ public:
 		throw std::runtime_error(sqlite3_errstr(res));
 	};
 };
+
 #endif // SQLITE_CPP_H_
