@@ -8,6 +8,12 @@ Single header SQLite C++ Wrapper (yes, another one, there many like it, but this
 
 #include "sqlite.c++.h"
 
+struct Record {
+	int id;
+	sqlite3_int64 price;
+	std::string desc;
+};
+
 int main () {
 	
 	// DB
@@ -17,38 +23,35 @@ int main () {
 	SQLiteDB db(dbName);
 	
 	// DDL
-	SQLiteQuery(db, "create table test ( id number, price bigint, desc varchar );").execute();
+	SQLiteQuery<>(db, "create table test ( id number, price bigint, desc varchar );").execute();
 	
 	// Insert
-	SQLiteQuery insert(db, "insert into test values ( ? , ? ,  ? );");
-	insert.bind(1, 1);
-	insert.bind(2, 998798);
-	insert.bind(3, "item 1 description");
+	SQLiteQuery<
+		decltype(Record::id),
+		decltype(Record::price),
+		decltype(Record::desc)> insert(db, "insert into test values ( ? , ? ,  ? );");
+
+	Record r = {1, 998798, "item 1 description"};
+	insert.bindValues(r.id, r.price, r.desc); // bind all values
 	insert.execute();
 	
-	insert.reset();
+	insert.reset(); // bind one value at a time
 	insert.bind(1, 2);
 	insert.bind(2, 203948394);
 	insert.bind(3, "item 2 description");
 	insert.execute();
 	
 	insert.reset();
-	insert.bind(1, 3);
-	insert.bind(2, 10293812938);
-	insert.bind(3, "item 3 description");
+	insert.bindValues(3, 10293812938, "item 3 description");
 	insert.execute();
 	
 	// Query
-	SQLiteQuery select(db, "select id, price, desc from test where id <> ?;");
-	select.bind(1, 2);
+	SQLiteQuery<int> select(db, "select id, price, desc from test where id <> ?;");
+	select.bindValues(2);
 	SQLiteResult<int, sqlite3_int64, std::string> result(select);
 	
 	while (result.next()) {
-		struct Record {
-			int id;
-			sqlite3_int64 price;
-			std::string desc;
-		} rec;
+		Record rec;
 		
 		result.fetch(rec.id, rec.price, rec.desc);
 		std::cout << rec.id << ", " << rec.price << ", " << rec.desc << std::endl;
