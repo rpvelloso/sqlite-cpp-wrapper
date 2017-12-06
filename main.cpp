@@ -37,8 +37,7 @@ int main () {
 	insert.execute();
 	
 	insert.reset();
-	r = {3, 10293812938, "item 3 description"};
-	insert.bindValues(r.id, r.price, r.desc);
+	insert.bindValues(3, 10293812938, "item 3 description");
 	insert.execute();
 	
 	// Query

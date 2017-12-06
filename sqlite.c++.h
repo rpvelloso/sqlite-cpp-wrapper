@@ -56,12 +56,6 @@ int bindValue<std::string>(sqlite3_stmt *stmt, int pos, std::string value) {
 	return sqlite3_bind_text(stmt, pos, value.c_str(), -1, SQLITE_TRANSIENT);
 }
 
-template<>
-int bindValue<std::string&>(sqlite3_stmt *stmt, int pos, std::string &value) {
-	std::cout << "ref" << std::endl;
-	return sqlite3_bind_text(stmt, pos, value.c_str(), -1, SQLITE_TRANSIENT);
-}
-
 template<class T>
 void _bindValues(sqlite3_stmt *stmt, int k, T first) {
 	auto res = bindValue<T>(stmt, k, first);
