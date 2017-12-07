@@ -1,5 +1,5 @@
 # sqlite-cpp-wrapper
-Single header SQLite C++ Wrapper (yes, another one, there many like it, but this one is mine).
+Single header SQLite C++ Wrapper (yes, another one, there are many like it, but this one is mine).
 
 # Usage example:
 ```cpp
