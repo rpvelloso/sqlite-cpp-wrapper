@@ -200,7 +200,7 @@ std::string getColumn<std::string>(sqlite3_stmt *stmt, int c) {
 	auto pStr = (const char *)sqlite3_column_text(stmt, c);
 	auto len = sqlite3_column_bytes(stmt, c);
 	if (pStr == nullptr)
-		return "";
+		return std::string();
 	return std::string((const char *)sqlite3_column_text(stmt, c), len);
 }
 
