@@ -32,7 +32,7 @@ int main () {
 		decltype(Record::desc)> insert(db, "insert into test values ( ? , ? ,  ? );");
 
 	Record r = {1, 998798, "item 1 description"};
-	insert.bindValues(r.id, r.price, r.desc); // bind all values
+	insert.bindValues(r.id, r.price, r.desc); // bind all values, pass by ref
 	insert.execute();
 	
 	insert.reset(); // bind one value at a time
