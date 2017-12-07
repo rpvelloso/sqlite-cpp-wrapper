@@ -11,20 +11,30 @@ void closeDB(sqlite3 *h) {
 		sqlite3_close(h);
 }
 
+template<class ... Types>
+class SQLiteQuery;
+
 class SQLiteDB {
 friend class SQLiteQueryBase;
 public:
-	SQLiteDB(const std::string &filename) : 
-		filename(filename), 
+	SQLiteDB(const std::string &filename) :
+		filename(filename),
 		dbHandle(nullptr, closeDB) {
-			
+
 		sqlite3 *handle;
-		
+
 		auto res = sqlite3_open(this->filename.c_str(), &handle);
 		if (res != SQLITE_OK)
 			throw std::runtime_error(sqlite3_errstr(res));
-		dbHandle.reset(handle);	
+		dbHandle.reset(handle);
 	};
+
+	template<class ... Types>
+	SQLiteQuery<Types...> makeQuery(const std::string &queryString, const Types& ... values);
+
+	SQLiteQuery<> makeQuery(const std::string &queryString);
+
+
 private:
 	std::string filename;
 	std::unique_ptr<sqlite3, decltype(&closeDB)> dbHandle;
@@ -172,6 +182,19 @@ private:
 		stmt.reset(stmtHandle);
 	}
 };
+
+template<class ... Types>
+SQLiteQuery<Types...> SQLiteDB::makeQuery(const std::string &queryString, const Types& ... values) {
+	SQLiteQuery<Types...> query(*this, queryString);
+	query.bindValues(values...);
+	return query;
+}
+
+SQLiteQuery<> SQLiteDB::makeQuery(const std::string &queryString) {
+	SQLiteQuery<> query(*this, queryString);
+	return query;
+}
+
 
 template<class T>
 T getColumn(sqlite3_stmt *stmt, int c) {

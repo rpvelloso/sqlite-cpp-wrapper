@@ -18,16 +18,13 @@ int main () {
 	SQLiteDB db(dbName);
 	
 	// DDL
-	SQLiteQuery<>(db, "create table test ( id number, price bigint, desc varchar );").execute();
+	db.makeQuery("create table test ( id number, price bigint, desc varchar );").execute();
 	
 	// Insert
-	SQLiteQuery<
-		decltype(Record::id),
-		decltype(Record::price),
-		decltype(Record::desc)> insert(db, "insert into test values ( ? , ? ,  ? );");
-
 	Record r = {1, 998798, "item 1 description"};
-	insert.bindValues(r.id, r.price, r.desc); // bind all values, pass by ref
+	auto insert = db.makeQuery(
+			"insert into test values ( ? , ? ,  ? );",
+			r.id, r.price, r.desc);
 	insert.execute();
 	
 	insert.reset(); // bind one value at a time
