@@ -3,6 +3,7 @@
 
 #include <exception>
 #include <memory>
+#include <vector>
 
 #include "sqlite3.h"
 
@@ -64,6 +65,11 @@ int bindValue<double>(sqlite3_stmt *stmt, int c, const double &value) {
 template<>
 int bindValue<std::string>(sqlite3_stmt *stmt, int pos, const std::string &value) {
 	return sqlite3_bind_text(stmt, pos, value.c_str(), -1, SQLITE_TRANSIENT);
+}
+
+template<>
+int bindValue<std::vector<char>>(sqlite3_stmt *stmt, int pos, const std::vector<char> &value) {
+	return sqlite3_bind_blob(stmt, pos, (const void *)&value[0], value.size(), SQLITE_TRANSIENT);
 }
 
 template<class T>
@@ -152,6 +158,12 @@ public:
 			throw std::runtime_error(sqlite3_errstr(res));
 	}
 	
+	void bind(int pos, const std::vector<char> &value) {
+		auto res = sqlite3_bind_blob(stmt.get(), pos, (const void *)&value[0], value.size(), SQLITE_TRANSIENT);
+		if (res != SQLITE_OK)
+			throw std::runtime_error(sqlite3_errstr(res));
+	}
+
 	void execute() {
 		auto res = sqlite3_step(stmt.get());
 		if (res != SQLITE_OK && res != SQLITE_DONE)
@@ -222,9 +234,20 @@ template<>
 std::string getColumn<std::string>(sqlite3_stmt *stmt, int c) {
 	auto pStr = (const char *)sqlite3_column_text(stmt, c);
 	auto len = sqlite3_column_bytes(stmt, c);
-	if (pStr == nullptr)
+	if (pStr == nullptr || len <= 0)
 		return std::string();
-	return std::string((const char *)sqlite3_column_text(stmt, c), len);
+	return std::string((const char *)pStr, len);
+}
+
+template<>
+std::vector<char> getColumn<std::vector<char>>(sqlite3_stmt *stmt, int c) {
+	auto pBlob = (const char *)sqlite3_column_blob(stmt, c);
+	auto len = sqlite3_column_bytes(stmt, c);
+	if (pBlob == nullptr || len <= 0)
+		return std::vector<char>();
+	std::vector<char> result(len);
+	std::copy(pBlob, pBlob + len, &result[0]);
+	return result;
 }
 
 template<class T>
