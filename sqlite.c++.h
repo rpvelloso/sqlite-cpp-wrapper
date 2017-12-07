@@ -4,6 +4,7 @@
 #include <exception>
 #include <memory>
 #include <vector>
+#include <type_traits>
 
 #include "sqlite3.h"
 
@@ -134,32 +135,16 @@ public:
 		_bindValues(stmt.get(), 1, args...);
 	}
 
-	void bind(int pos, int value) {
-		auto res = sqlite3_bind_int(stmt.get(), pos, value);
+	template<class T>
+	void bind(int pos, const T& value) {
+		auto res = bindValue<T>(stmt.get(), pos, value);
 		if (res != SQLITE_OK)
 			throw std::runtime_error(sqlite3_errstr(res));
 	}
 	
-	void bind(int pos, sqlite3_int64 value) {
-		auto res = sqlite3_bind_int64(stmt.get(), pos, value);
-		if (res != SQLITE_OK)
-			throw std::runtime_error(sqlite3_errstr(res));
-	}
-	
-	void bind(int pos, double value) {
-		auto res = sqlite3_bind_double(stmt.get(), pos, value);
-		if (res != SQLITE_OK)
-			throw std::runtime_error(sqlite3_errstr(res));
-	}
-
-	void bind(int pos, const std::string &value) {
-		auto res = sqlite3_bind_text(stmt.get(), pos, value.c_str(), -1, SQLITE_TRANSIENT);
-		if (res != SQLITE_OK)
-			throw std::runtime_error(sqlite3_errstr(res));
-	}
-	
-	void bind(int pos, const std::vector<char> &value) {
-		auto res = sqlite3_bind_blob(stmt.get(), pos, (const void *)&value[0], value.size(), SQLITE_TRANSIENT);
+	void bind(int pos, const char *value) {
+		std::string str(value);
+		auto res = bindValue<std::string>(stmt.get(), pos, str);
 		if (res != SQLITE_OK)
 			throw std::runtime_error(sqlite3_errstr(res));
 	}
