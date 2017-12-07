@@ -30,9 +30,9 @@ public:
 	};
 
 	template<class ... Types>
-	SQLiteQuery<Types...> makeQuery(const std::string &queryString, const Types& ... values);
+	SQLiteQuery<Types...> createQuery(const std::string &queryString, const Types& ... values);
 
-	SQLiteQuery<> makeQuery(const std::string &queryString);
+	SQLiteQuery<> createQuery(const std::string &queryString);
 
 
 private:
@@ -184,13 +184,13 @@ private:
 };
 
 template<class ... Types>
-SQLiteQuery<Types...> SQLiteDB::makeQuery(const std::string &queryString, const Types& ... values) {
+SQLiteQuery<Types...> SQLiteDB::createQuery(const std::string &queryString, const Types& ... values) {
 	SQLiteQuery<Types...> query(*this, queryString);
 	query.bindValues(values...);
 	return query;
 }
 
-SQLiteQuery<> SQLiteDB::makeQuery(const std::string &queryString) {
+SQLiteQuery<> SQLiteDB::createQuery(const std::string &queryString) {
 	SQLiteQuery<> query(*this, queryString);
 	return query;
 }

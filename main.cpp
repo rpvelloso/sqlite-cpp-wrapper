@@ -18,11 +18,11 @@ int main () {
 	SQLiteDB db(dbName);
 	
 	// DDL
-	db.makeQuery("create table test ( id number, price bigint, desc varchar );").execute();
+	db.createQuery("create table test ( id number, price bigint, desc varchar );").execute();
 	
 	// Insert
 	Record r = {1, 998798, "item 1 description"};
-	auto insert = db.makeQuery(
+	auto insert = db.createQuery(
 			"insert into test values ( ? , ? ,  ? );",
 			r.id, r.price, r.desc); // binded values
 	insert.execute();
