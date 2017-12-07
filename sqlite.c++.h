@@ -31,40 +31,40 @@ private:
 };
 
 template<class T>
-int bindValue(sqlite3_stmt *stmt, int c, T value) {
+int bindValue(sqlite3_stmt *stmt, int c, const T& value) {
 	throw std::runtime_error("invalid or unhandled data type - bind");
 	return 0;
 };
 
 template<>
-int bindValue<int>(sqlite3_stmt *stmt, int c, int value) {
+int bindValue<int>(sqlite3_stmt *stmt, int c, const int &value) {
 	return sqlite3_bind_int(stmt, c, value);
 }
 
 template<>
-int bindValue<sqlite_int64>(sqlite3_stmt *stmt, int c, sqlite_int64 value) {
+int bindValue<sqlite_int64>(sqlite3_stmt *stmt, int c, const sqlite_int64 &value) {
 	return sqlite3_bind_int64(stmt, c, value);
 }
 
 template<>
-int bindValue<double>(sqlite3_stmt *stmt, int c, double value) {
+int bindValue<double>(sqlite3_stmt *stmt, int c, const double &value) {
 	return sqlite3_bind_double(stmt, c, value);
 }
 
 template<>
-int bindValue<std::string>(sqlite3_stmt *stmt, int pos, std::string value) {
+int bindValue<std::string>(sqlite3_stmt *stmt, int pos, const std::string &value) {
 	return sqlite3_bind_text(stmt, pos, value.c_str(), -1, SQLITE_TRANSIENT);
 }
 
 template<class T>
-void _bindValues(sqlite3_stmt *stmt, int k, T first) {
+void _bindValues(sqlite3_stmt *stmt, int k, const T& first) {
 	auto res = bindValue<T>(stmt, k, first);
 	if (res != SQLITE_OK)
 		throw std::runtime_error(sqlite3_errstr(res));
 }
 
 template<class T, class ...Types>
-void _bindValues(sqlite3_stmt *stmt, int k, T first, Types...args) {
+void _bindValues(sqlite3_stmt *stmt, int k, const T& first, const Types&...args) {
 	auto res = bindValue<T>(stmt, k, first);
 	if (res != SQLITE_OK)
 		throw std::runtime_error(sqlite3_errstr(res));
@@ -114,7 +114,7 @@ public:
 		return *this;
 	}
 	
-	void bindValues(Types...args) {
+	void bindValues(const Types&... args) {
 		_bindValues(stmt.get(), 1, args...);
 	}
 
