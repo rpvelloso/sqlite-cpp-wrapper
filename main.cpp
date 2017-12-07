@@ -24,7 +24,7 @@ int main () {
 	Record r = {1, 998798, "item 1 description"};
 	auto insert = db.makeQuery(
 			"insert into test values ( ? , ? ,  ? );",
-			r.id, r.price, r.desc);
+			r.id, r.price, r.desc); // binded values
 	insert.execute();
 	
 	insert.reset(); // bind one value at a time
@@ -34,7 +34,7 @@ int main () {
 	insert.execute();
 	
 	insert.reset();
-	insert.bindValues(3, 10293812938, "item 3 description");
+	insert.bindValues(3, 10293812938, "item 3 description"); // bind all values
 	insert.execute();
 	
 	// Query
