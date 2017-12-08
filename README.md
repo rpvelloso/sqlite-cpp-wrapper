@@ -9,8 +9,8 @@ Single header SQLite C++ Wrapper (yes, another one, there are many like it, but 
 #include "sqlite.c++.h"
 
 struct Record {
-	int id;
-	sqlite3_int64 price;
+	sqlite3_int64 id;
+	int price;
 	std::string desc;
 	std::vector<char> data;
 };
@@ -26,7 +26,7 @@ int main () {
 	// DDL
 	db.createQuery(
 		"create table test ( "
-			"id number, "
+			"id integer primary key, "
 			"price bigint, "
 			"desc varchar, "
 			"data blob );").execute();
@@ -34,25 +34,23 @@ int main () {
 	// Insert
 	Record r = {1, 998798, "item 1 description", {1,2,3,4,5}};
 	auto insert = db.createQuery(
-			"insert into test values (?, ?, ?, ?);",
-			r.id, r.price, r.desc, r.data); // binded values
+			"insert into test values (null, ?, ?, ?);",
+			r.price, r.desc, r.data); // binded values (variables)
 	insert.execute();
 	std::cout << "Row ID: " << db.lastInsertRowID() << std::endl;
 	
 	insert.reset(); // bind one value at a time
-	insert.bind(1, 2);
-	insert.bind(2, 203948394);
-	insert.bind(3, "item 2 description");
-	insert.bind(4, std::vector<char>{6, 7, 8, 9});
+	insert.bind(1, 203948394);
+	insert.bind(2, "item 2 description");
+	insert.bind(3, std::vector<char>{6, 7, 8, 9});
 	insert.execute();
 	std::cout << "Row ID: " << db.lastInsertRowID() << std::endl;
 	
 	insert.reset();
 	insert.bindValues(
-		3,
-		10293812938,
+		102912938,
 		"item 3 description",
-		std::vector<char>{11, 12, 13, 14, 15}); // bind all values
+		std::vector<char>{11, 12, 13, 14, 15}); // bind all values (literals)
 	insert.execute();
 	std::cout << "Row ID: " << db.lastInsertRowID() << std::endl;
 	
@@ -76,9 +74,10 @@ int main () {
 
 Output:
 ```bash
+$ ./test.exe
 Row ID: 1
 Row ID: 2
 Row ID: 3
 1, 998798, item 1 description, data: 1 2 3 4 5
-3, 10293812938, item 3 description, data: 11 12 13 14 15
+3, 102912938, item 3 description, data: 11 12 13 14 15
 ```
