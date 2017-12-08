@@ -41,6 +41,26 @@ int main () {
 	insert.execute();
 	std::cout << "Row ID: " << db.lastInsertRowID() << std::endl;
 	
+	{
+		SQLiteTransationGuard transaction(db);
+
+		insert.reset();
+		insert.bindValues(999, "won't be inserted",std::vector<char>());
+		insert.execute();
+		std::cout << "Rollback Row ID: " << db.lastInsertRowID() << std::endl;
+		// rollback
+	}
+
+	{
+		SQLiteTransationGuard transaction(db);
+
+		insert.reset();
+		insert.bindValues(777, "will be inserted",std::vector<char>());
+		insert.execute();
+		std::cout << "Commit Row ID: " << db.lastInsertRowID() << std::endl;
+		transaction.commit();
+	}
+
 	insert.reset();
 	insert.bindValues(
 		102912938,

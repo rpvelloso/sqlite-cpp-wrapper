@@ -176,6 +176,25 @@ SQLiteQuery SQLiteDB::createQuery(const std::string &queryString) {
 	return SQLiteQuery(*this, queryString);
 }
 
+class SQLiteTransationGuard {
+public:
+	SQLiteTransationGuard(SQLiteDB &db) : db(db) {
+		db.createQuery("BEGIN TRANSACTION;").execute();
+	};
+
+	void commit() { // must be called explicitly
+		db.createQuery("COMMIT;").execute();
+		commited = true;
+	};
+
+	~SQLiteTransationGuard() {
+		if (!commited)
+			db.createQuery("ROLLBACK;").execute();
+	}
+private:
+	bool commited = false;
+	SQLiteDB &db;
+};
 
 template<class T>
 T getColumn(sqlite3_stmt *stmt, int c) {
