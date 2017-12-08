@@ -69,6 +69,6 @@ int main () {
 Output:
 ```bash
 $ ./test.exe
-1, 998798, item 1 description
-3, 10293812938, item 3 description
+1, 998798, item 1 description, data: 1 2 3 4 5
+3, 10293812938, item 3 description, data: 11 12 13 14 15
 ```
