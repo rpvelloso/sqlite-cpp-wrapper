@@ -52,7 +52,7 @@ int main () {
 	}
 
 	{
-		SQLiteTransationGuard transaction(db);
+		auto transaction = db.startTransaction();
 
 		insert.reset();
 		insert.bindValues(777, "will be inserted",std::vector<char>());

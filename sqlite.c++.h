@@ -14,6 +14,7 @@ void closeDB(sqlite3 *h) {
 }
 
 class SQLiteQuery;
+class SQLiteTransationGuard;
 
 class SQLiteDB {
 friend class SQLiteQuery;
@@ -32,8 +33,8 @@ public:
 
 	template<class ... Types>
 	SQLiteQuery createQuery(const std::string &queryString, const Types& ... values);
-
 	SQLiteQuery createQuery(const std::string &queryString);
+	SQLiteTransationGuard startTransaction();
 
 	sqlite3_int64 lastInsertRowID() {
 		return sqlite3_last_insert_rowid(dbHandle.get());
@@ -194,6 +195,10 @@ public:
 private:
 	bool commited = false;
 	SQLiteDB &db;
+};
+
+SQLiteTransationGuard SQLiteDB::startTransaction() {
+	return SQLiteTransationGuard(*this);
 };
 
 template<class T>
