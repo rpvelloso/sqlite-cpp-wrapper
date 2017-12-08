@@ -46,7 +46,11 @@ int main () {
 	insert.execute();
 	
 	insert.reset();
-	insert.bindValues(3, 10293812938, "item 3 description", std::vector<char>{11, 12, 13, 14, 15}); // bind all values
+	insert.bindValues(
+		3,
+		10293812938,
+		"item 3 description",
+		std::vector<char>{11, 12, 13, 14, 15}); // bind all values
 	insert.execute();
 	
 	// Query
