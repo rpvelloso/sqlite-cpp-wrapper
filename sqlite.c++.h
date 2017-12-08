@@ -13,11 +13,10 @@ void closeDB(sqlite3 *h) {
 		sqlite3_close(h);
 }
 
-template<class ... Types>
 class SQLiteQuery;
 
 class SQLiteDB {
-friend class SQLiteQueryBase;
+friend class SQLiteQuery;
 public:
 	SQLiteDB(const std::string &filename) :
 		filename(filename),
@@ -32,57 +31,52 @@ public:
 	};
 
 	template<class ... Types>
-	SQLiteQuery<Types...> createQuery(const std::string &queryString, const Types& ... values);
+	SQLiteQuery createQuery(const std::string &queryString, const Types& ... values);
 
-	SQLiteQuery<> createQuery(const std::string &queryString);
+	SQLiteQuery createQuery(const std::string &queryString);
 
-
+	sqlite3_int64 lastInsertRowID() {
+		return sqlite3_last_insert_rowid(dbHandle.get());
+	};
 private:
 	std::string filename;
 	std::unique_ptr<sqlite3, decltype(&closeDB)> dbHandle;
 };
 
-template<class T>
-int bindValue(sqlite3_stmt *stmt, int c, const T& value) {
-	throw std::runtime_error("invalid or unhandled data type - bind");
-	return 0;
-};
-
-template<>
-int bindValue<int>(sqlite3_stmt *stmt, int c, const int &value) {
+int bindValue(sqlite3_stmt *stmt, int c, const int &value) {
 	return sqlite3_bind_int(stmt, c, value);
 }
 
-template<>
-int bindValue<sqlite_int64>(sqlite3_stmt *stmt, int c, const sqlite_int64 &value) {
+int bindValue(sqlite3_stmt *stmt, int c, const sqlite_int64 &value) {
 	return sqlite3_bind_int64(stmt, c, value);
 }
 
-template<>
-int bindValue<double>(sqlite3_stmt *stmt, int c, const double &value) {
+int bindValue(sqlite3_stmt *stmt, int c, const double &value) {
 	return sqlite3_bind_double(stmt, c, value);
 }
 
-template<>
-int bindValue<std::string>(sqlite3_stmt *stmt, int pos, const std::string &value) {
+int bindValue(sqlite3_stmt *stmt, int pos, const std::string &value) {
 	return sqlite3_bind_text(stmt, pos, value.c_str(), -1, SQLITE_TRANSIENT);
 }
 
-template<>
-int bindValue<std::vector<char>>(sqlite3_stmt *stmt, int pos, const std::vector<char> &value) {
+int bindValue(sqlite3_stmt *stmt, int pos, char * const &value) {
+	return sqlite3_bind_text(stmt, pos, value, -1, SQLITE_TRANSIENT);
+}
+
+int bindValue(sqlite3_stmt *stmt, int pos, const std::vector<char> &value) {
 	return sqlite3_bind_blob(stmt, pos, (const void *)&value[0], value.size(), SQLITE_TRANSIENT);
 }
 
 template<class T>
 void _bindValues(sqlite3_stmt *stmt, int k, const T& first) {
-	auto res = bindValue<T>(stmt, k, first);
+	auto res = bindValue(stmt, k, first);
 	if (res != SQLITE_OK)
 		throw std::runtime_error(sqlite3_errstr(res));
 }
 
 template<class T, class ...Types>
 void _bindValues(sqlite3_stmt *stmt, int k, const T& first, const Types&...args) {
-	auto res = bindValue<T>(stmt, k, first);
+	auto res = bindValue(stmt, k, first);
 	if (res != SQLITE_OK)
 		throw std::runtime_error(sqlite3_errstr(res));
 	_bindValues(stmt, k+1, args...);
@@ -93,33 +87,18 @@ void finalizeStmt(sqlite3_stmt *stmt) {
 		sqlite3_finalize(stmt);
 }
 
-class SQLiteQueryBase {
-	friend class SQLiteResultBase;
-public:
-	SQLiteQueryBase(SQLiteDB &db) : db(db), stmt(nullptr, finalizeStmt) {};
-	SQLiteQueryBase(SQLiteQueryBase &&) = default;
-	SQLiteQueryBase(const SQLiteQueryBase &) = default;
-	virtual SQLiteQueryBase &operator=(const SQLiteQueryBase &) = default;
-	virtual SQLiteQueryBase &operator=(SQLiteQueryBase &&) = default;
-	virtual ~SQLiteQueryBase() {};
-private:
-	SQLiteDB &db;
-protected:
-	std::unique_ptr<sqlite3_stmt, decltype(&finalizeStmt)> stmt;
-	sqlite3 *getDBHandle() {
-		return db.dbHandle.get();
-	};
-};
+class SQLiteResult;
 
-template<class ... Types>
-class SQLiteQuery : public SQLiteQueryBase {
+class SQLiteQuery {
+	friend SQLiteResult;
 public:
-	SQLiteQuery(SQLiteDB &db) : 
-		SQLiteQueryBase(db) {
-	};
+	SQLiteQuery(SQLiteDB &db) :
+		db(db),
+		stmt(nullptr, finalizeStmt) {};
 	
 	SQLiteQuery(SQLiteDB &db, const std::string &query) : 
-		SQLiteQueryBase(db),
+		db(db),
+		stmt(nullptr, finalizeStmt),
 		query(query) {
 			
 		prepare();
@@ -131,20 +110,21 @@ public:
 		return *this;
 	}
 	
+	template<class ... Types>
 	void bindValues(const Types&... args) {
 		_bindValues(stmt.get(), 1, args...);
 	}
 
 	template<class T>
 	void bind(int pos, const T& value) {
-		auto res = bindValue<T>(stmt.get(), pos, value);
+		auto res = bindValue(stmt.get(), pos, value);
 		if (res != SQLITE_OK)
 			throw std::runtime_error(sqlite3_errstr(res));
 	}
 	
 	void bind(int pos, const char *value) {
 		std::string str(value);
-		auto res = bindValue<std::string>(stmt.get(), pos, str);
+		auto res = bindValue(stmt.get(), pos, str);
 		if (res != SQLITE_OK)
 			throw std::runtime_error(sqlite3_errstr(res));
 	}
@@ -160,14 +140,19 @@ public:
 		if (res != SQLITE_OK)
 			throw std::runtime_error(sqlite3_errstr(res));
 	};
+
+	SQLiteResult getResult();
+
 private:
+	SQLiteDB &db;
+	std::shared_ptr<sqlite3_stmt> stmt;
 	std::string query;
 	
 	void prepare() {
 		sqlite3_stmt *stmtHandle;
 		
 		auto res = sqlite3_prepare(
-			getDBHandle(),
+			db.dbHandle.get(),
 			query.c_str(),
 			query.size(),
 			&stmtHandle,
@@ -176,20 +161,19 @@ private:
 		if (res != SQLITE_OK)
 			throw std::runtime_error(sqlite3_errstr(res));
 				
-		stmt.reset(stmtHandle);
+		stmt.reset(stmtHandle, finalizeStmt);
 	}
 };
 
 template<class ... Types>
-SQLiteQuery<Types...> SQLiteDB::createQuery(const std::string &queryString, const Types& ... values) {
-	SQLiteQuery<Types...> query(*this, queryString);
+SQLiteQuery SQLiteDB::createQuery(const std::string &queryString, const Types& ... values) {
+	SQLiteQuery query(*this, queryString);
 	query.bindValues(values...);
 	return query;
 }
 
-SQLiteQuery<> SQLiteDB::createQuery(const std::string &queryString) {
-	SQLiteQuery<> query(*this, queryString);
-	return query;
+SQLiteQuery SQLiteDB::createQuery(const std::string &queryString) {
+	return SQLiteQuery(*this, queryString);
 }
 
 
@@ -246,33 +230,17 @@ void getRecord(sqlite3_stmt *stmt, int k, T &first, Types&...args) {
 	getRecord(stmt, k+1, args...);
 }
 
-class SQLiteResultBase {
+class SQLiteResult {
 public:
-	SQLiteResultBase(SQLiteQueryBase &query) : query(query) {};
-	SQLiteResultBase(SQLiteResultBase &&) = default;
-	SQLiteResultBase(const SQLiteResultBase &) = default;
-	virtual SQLiteResultBase &operator=(const SQLiteResultBase &) = default;
-	virtual SQLiteResultBase &operator=(SQLiteResultBase &&) = default;
-	virtual ~SQLiteResultBase() {};
-protected:
-	sqlite3_stmt *getQueryStmt() {
-		return query.stmt.get();
-	};
-private:
-	SQLiteQueryBase &query;
-};
-
-template<class ... Types>
-class SQLiteResult : private SQLiteResultBase {
-public:
-	SQLiteResult(SQLiteQueryBase &query) : SQLiteResultBase(query) {};
+	SQLiteResult(SQLiteQuery &query) : stmt(query.stmt) {};
 	
+	template<class ... Types>
 	void fetch(Types&...args) {
-		getRecord(getQueryStmt(), 0, args...);
+		getRecord(stmt.get(), 0, args...);
 	}
 	
 	bool next() {
-		auto res = sqlite3_step(getQueryStmt());
+		auto res = sqlite3_step(stmt.get());
 		if (res == SQLITE_ROW)
 			return true;
 		if (res == SQLITE_DONE)
@@ -280,6 +248,12 @@ public:
 		
 		throw std::runtime_error(sqlite3_errstr(res));
 	};
+private:
+	std::shared_ptr<sqlite3_stmt> stmt;
+};
+
+SQLiteResult SQLiteQuery::getResult() {
+	return SQLiteResult(*this);
 };
 
 #endif // SQLITE_CPP_H_

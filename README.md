@@ -37,6 +37,7 @@ int main () {
 			"insert into test values (?, ?, ?, ?);",
 			r.id, r.price, r.desc, r.data); // binded values
 	insert.execute();
+	std::cout << "Row ID: " << db.lastInsertRowID() << std::endl;
 	
 	insert.reset(); // bind one value at a time
 	insert.bind(1, 2);
@@ -44,6 +45,7 @@ int main () {
 	insert.bind(3, "item 2 description");
 	insert.bind(4, std::vector<char>{6, 7, 8, 9});
 	insert.execute();
+	std::cout << "Row ID: " << db.lastInsertRowID() << std::endl;
 	
 	insert.reset();
 	insert.bindValues(
@@ -52,12 +54,14 @@ int main () {
 		"item 3 description",
 		std::vector<char>{11, 12, 13, 14, 15}); // bind all values
 	insert.execute();
+	std::cout << "Row ID: " << db.lastInsertRowID() << std::endl;
 	
 	// Query
-	SQLiteQuery<int> select(db, "select id, price, desc, data from test where id <> ?;");
-	select.bindValues(2);
-	SQLiteResult<int, sqlite3_int64, std::string, std::vector<char>> result(select);
-	
+	auto result =
+			db.
+			createQuery("select id, price, desc, data from test where id <> ?;", 2).
+			getResult();
+
 	while (result.next()) {
 		Record rec;
 		
@@ -72,7 +76,9 @@ int main () {
 
 Output:
 ```bash
-$ ./test.exe
+Row ID: 1
+Row ID: 2
+Row ID: 3
 1, 998798, item 1 description, data: 1 2 3 4 5
 3, 10293812938, item 3 description, data: 11 12 13 14 15
 ```
