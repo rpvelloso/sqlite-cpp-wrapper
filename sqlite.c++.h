@@ -8,7 +8,7 @@
 
 #include "sqlite3.h"
 
-void closeDB(sqlite3 *h) {
+inline void closeDB(sqlite3 *h) {
 	if (h != nullptr)
 		sqlite3_close(h);
 }
@@ -44,27 +44,27 @@ private:
 	std::unique_ptr<sqlite3, decltype(&closeDB)> dbHandle;
 };
 
-int bindValue(sqlite3_stmt *stmt, int c, const int &value) {
+inline int bindValue(sqlite3_stmt *stmt, int c, const int &value) {
 	return sqlite3_bind_int(stmt, c, value);
 }
 
-int bindValue(sqlite3_stmt *stmt, int c, const sqlite_int64 &value) {
+inline int bindValue(sqlite3_stmt *stmt, int c, const sqlite_int64 &value) {
 	return sqlite3_bind_int64(stmt, c, value);
 }
 
-int bindValue(sqlite3_stmt *stmt, int c, const double &value) {
+inline int bindValue(sqlite3_stmt *stmt, int c, const double &value) {
 	return sqlite3_bind_double(stmt, c, value);
 }
 
-int bindValue(sqlite3_stmt *stmt, int pos, const std::string &value) {
+inline int bindValue(sqlite3_stmt *stmt, int pos, const std::string &value) {
 	return sqlite3_bind_text(stmt, pos, value.c_str(), -1, SQLITE_TRANSIENT);
 }
 
-int bindValue(sqlite3_stmt *stmt, int pos, char * const &value) {
+inline int bindValue(sqlite3_stmt *stmt, int pos, char * const &value) {
 	return sqlite3_bind_text(stmt, pos, value, -1, SQLITE_TRANSIENT);
 }
 
-int bindValue(sqlite3_stmt *stmt, int pos, const std::vector<char> &value) {
+inline int bindValue(sqlite3_stmt *stmt, int pos, const std::vector<char> &value) {
 	return sqlite3_bind_blob(stmt, pos, (const void *)&value[0], value.size(), SQLITE_TRANSIENT);
 }
 
@@ -83,7 +83,7 @@ void _bindValues(sqlite3_stmt *stmt, int k, const T& first, const Types&...args)
 	_bindValues(stmt, k+1, args...);
 }
 
-void finalizeStmt(sqlite3_stmt *stmt) {
+inline void finalizeStmt(sqlite3_stmt *stmt) {
 	if (stmt != nullptr)
 		sqlite3_finalize(stmt);
 }
@@ -173,7 +173,7 @@ SQLiteQuery SQLiteDB::createQuery(const std::string &queryString, const Types& .
 	return query;
 }
 
-SQLiteQuery SQLiteDB::createQuery(const std::string &queryString) {
+inline SQLiteQuery SQLiteDB::createQuery(const std::string &queryString) {
 	return SQLiteQuery(*this, queryString);
 }
 
@@ -181,6 +181,10 @@ class SQLiteTransationGuard {
 public:
 	SQLiteTransationGuard(SQLiteDB &db) : db(db) {
 		db.createQuery("BEGIN TRANSACTION;").execute();
+	};
+
+	SQLiteTransationGuard(SQLiteTransationGuard &&rhs) : db(rhs.db) {
+		rhs.commited = true; // to prevent rollback when destroying moved object
 	};
 
 	void commit() { // must be called explicitly
@@ -195,9 +199,10 @@ public:
 private:
 	bool commited = false;
 	SQLiteDB &db;
+	SQLiteTransationGuard(SQLiteTransationGuard &) = delete;
 };
 
-SQLiteTransationGuard SQLiteDB::startTransaction() {
+inline SQLiteTransationGuard SQLiteDB::startTransaction() {
 	return SQLiteTransationGuard(*this);
 };
 
@@ -209,22 +214,22 @@ T getColumn(sqlite3_stmt *stmt, int c) {
 };
 
 template<>
-int getColumn<int>(sqlite3_stmt *stmt, int c) {
+inline int getColumn<int>(sqlite3_stmt *stmt, int c) {
 	return sqlite3_column_int(stmt, c);
 }
 
 template<>
-sqlite_int64 getColumn<sqlite_int64>(sqlite3_stmt *stmt, int c) {
+inline sqlite_int64 getColumn<sqlite_int64>(sqlite3_stmt *stmt, int c) {
 	return sqlite3_column_int64(stmt, c);
 }
 
 template<>
-double getColumn<double>(sqlite3_stmt *stmt, int c) {
+inline double getColumn<double>(sqlite3_stmt *stmt, int c) {
 	return sqlite3_column_double(stmt, c);
 }
 
 template<>
-std::string getColumn<std::string>(sqlite3_stmt *stmt, int c) {
+inline std::string getColumn<std::string>(sqlite3_stmt *stmt, int c) {
 	auto pStr = (const char *)sqlite3_column_text(stmt, c);
 	auto len = sqlite3_column_bytes(stmt, c);
 	if (pStr == nullptr || len <= 0)
@@ -233,7 +238,7 @@ std::string getColumn<std::string>(sqlite3_stmt *stmt, int c) {
 }
 
 template<>
-std::vector<char> getColumn<std::vector<char>>(sqlite3_stmt *stmt, int c) {
+inline std::vector<char> getColumn<std::vector<char>>(sqlite3_stmt *stmt, int c) {
 	auto pBlob = (const char *)sqlite3_column_blob(stmt, c);
 	auto len = sqlite3_column_bytes(stmt, c);
 	if (pBlob == nullptr || len <= 0)
@@ -276,7 +281,7 @@ private:
 	std::shared_ptr<sqlite3_stmt> stmt;
 };
 
-SQLiteResult SQLiteQuery::getResult() {
+inline SQLiteResult SQLiteQuery::getResult() {
 	return SQLiteResult(*this);
 };
 
