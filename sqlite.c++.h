@@ -14,7 +14,7 @@ inline void closeDB(sqlite3 *h) {
 }
 
 class SQLiteQuery;
-class SQLiteTransationGuard;
+class SQLiteTransactionGuard;
 
 class SQLiteDB {
 friend class SQLiteQuery;
@@ -34,7 +34,7 @@ public:
 	template<class ... Types>
 	SQLiteQuery createQuery(const std::string &queryString, const Types& ... values);
 	SQLiteQuery createQuery(const std::string &queryString);
-	SQLiteTransationGuard startTransaction();
+	SQLiteTransactionGuard startTransaction();
 
 	sqlite3_int64 lastInsertRowID() {
 		return sqlite3_last_insert_rowid(dbHandle.get());
@@ -177,13 +177,13 @@ inline SQLiteQuery SQLiteDB::createQuery(const std::string &queryString) {
 	return SQLiteQuery(*this, queryString);
 }
 
-class SQLiteTransationGuard {
+class SQLiteTransactionGuard {
 public:
-	SQLiteTransationGuard(SQLiteDB &db) : db(db) {
+	SQLiteTransactionGuard(SQLiteDB &db) : db(db) {
 		db.createQuery("BEGIN TRANSACTION;").execute();
 	};
 
-	SQLiteTransationGuard(SQLiteTransationGuard &&rhs) : db(rhs.db) {
+	SQLiteTransactionGuard(SQLiteTransactionGuard &&rhs) : db(rhs.db) {
 		rhs.commited = true; // to prevent rollback when destroying moved object
 	};
 
@@ -192,18 +192,18 @@ public:
 		commited = true;
 	};
 
-	~SQLiteTransationGuard() {
+	~SQLiteTransactionGuard() {
 		if (!commited)
 			db.createQuery("ROLLBACK;").execute();
 	}
 private:
 	bool commited = false;
 	SQLiteDB &db;
-	SQLiteTransationGuard(SQLiteTransationGuard &) = delete;
+	SQLiteTransactionGuard(SQLiteTransactionGuard &) = delete;
 };
 
-inline SQLiteTransationGuard SQLiteDB::startTransaction() {
-	return SQLiteTransationGuard(*this);
+inline SQLiteTransactionGuard SQLiteDB::startTransaction() {
+	return SQLiteTransactionGuard(*this);
 };
 
 template<class T>

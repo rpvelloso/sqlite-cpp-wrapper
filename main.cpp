@@ -42,7 +42,7 @@ int main () {
 	std::cout << "Row ID: " << db.lastInsertRowID() << std::endl;
 	
 	{
-		SQLiteTransationGuard transaction(db);
+		SQLiteTransactionGuard transaction(db);
 
 		insert.reset();
 		insert.bindValues(999, "won't be inserted",std::vector<char>());
