@@ -183,21 +183,26 @@ public:
 		db.createQuery("BEGIN TRANSACTION;").execute();
 	};
 
-	SQLiteTransactionGuard(SQLiteTransactionGuard &&rhs) : db(rhs.db) {
-		rhs.commited = true; // to prevent rollback when destroying moved object
+	SQLiteTransactionGuard(SQLiteTransactionGuard &&rhs) : finished(rhs.finished), db(rhs.db) {
+		rhs.finished = true; // to prevent rollback when destroying moved object
 	};
 
-	void commit() { // must be called explicitly
+	void commit() { // must be called explicitly, otherwise rolls back when destroying transaction obj
 		db.createQuery("COMMIT;").execute();
-		commited = true;
+		finished = true;
+	};
+
+	void rollback() {
+		db.createQuery("ROLLBACK;").execute();
+		finished = true;
 	};
 
 	~SQLiteTransactionGuard() {
-		if (!commited)
-			db.createQuery("ROLLBACK;").execute();
+		if (!finished)
+			rollback();
 	}
 private:
-	bool commited = false;
+	bool finished = false;
 	SQLiteDB &db;
 	SQLiteTransactionGuard(SQLiteTransactionGuard &) = delete;
 };
