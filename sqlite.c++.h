@@ -5,8 +5,11 @@
 #include <memory>
 #include <vector>
 #include <type_traits>
+#include <iostream>
 
 #include "sqlite3.h"
+
+int displaySQL = 0;
 
 inline void closeDB(sqlite3 *h) {
 	if (h != nullptr)
@@ -95,7 +98,8 @@ class SQLiteQuery {
 public:
 	SQLiteQuery(SQLiteDB &db) :
 		db(db),
-		stmt(nullptr, finalizeStmt) {};
+		stmt(nullptr, finalizeStmt) {
+	};
 	
 	SQLiteQuery(SQLiteDB &db, const std::string &query) : 
 		db(db),
@@ -131,6 +135,9 @@ public:
 	}
 
 	void execute() {
+		if (displaySQL)
+			std::cerr << sqlite3_expanded_sql(stmt.get()) << std::endl << std::endl;
+
 		auto res = sqlite3_step(stmt.get());
 		if (res != SQLITE_OK && res != SQLITE_DONE)
 			throw std::runtime_error(sqlite3_errstr(res));
@@ -287,6 +294,9 @@ private:
 };
 
 inline SQLiteResult SQLiteQuery::getResult() {
+	if (displaySQL)
+		std::cerr << sqlite3_expanded_sql(stmt.get()) << std::endl << std::endl;
+
 	return SQLiteResult(*this);
 };
 
