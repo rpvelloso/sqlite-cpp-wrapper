@@ -9,7 +9,7 @@
 
 #include "sqlite3.h"
 
-int displaySQL = 0;
+static int displaySQL = 0;
 
 inline void closeDB(sqlite3 *h) {
 	if (h != nullptr)
