@@ -9,8 +9,6 @@
 
 #include "sqlite3.h"
 
-static int displaySQL = 0;
-
 inline void closeDB(sqlite3 *h) {
 	if (h != nullptr)
 		sqlite3_close(h);
@@ -42,7 +40,15 @@ public:
 	sqlite3_int64 lastInsertRowID() {
 		return sqlite3_last_insert_rowid(dbHandle.get());
 	};
+
+	void setVerbose(bool v) {
+		verbose = v;
+	};
+	bool getVerbose() {
+		return verbose;
+	};
 private:
+	bool verbose = false;
 	std::string filename;
 	std::unique_ptr<sqlite3, decltype(&closeDB)> dbHandle;
 };
@@ -135,7 +141,7 @@ public:
 	}
 
 	void execute() {
-		if (displaySQL)
+		if (db.getVerbose())
 			std::cerr << sqlite3_expanded_sql(stmt.get()) << std::endl << std::endl;
 
 		auto res = sqlite3_step(stmt.get());
@@ -294,7 +300,7 @@ private:
 };
 
 inline SQLiteResult SQLiteQuery::getResult() {
-	if (displaySQL)
+	if (db.getVerbose())
 		std::cerr << sqlite3_expanded_sql(stmt.get()) << std::endl << std::endl;
 
 	return SQLiteResult(*this);
